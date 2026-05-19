@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>UltraQuest</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Share+Tech+Mono&display=swap" rel="stylesheet" />
+  <style>
+    /* ── Reset & Base ───────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:          #0d0d11;
+      --bg2:         #111118;
+      --bg3:         #16161f;
+      --border:      #2a2a3a;
+      --red:         #ff2233;
+      --red-dim:     #8a0f19;
+      --amber:       #ffaa00;
+      --amber-dim:   #7a5000;
+      --green:       #00ff88;
+      --green-dim:   #006640;
+      --blue:        #00aaff;
+      --blue-dim:    #004d7a;
+      --white:       #e8e8f0;
+      --muted:       #555570;
+      --font-main:   'Orbitron', sans-serif;
+      --font-mono:   'Share Tech Mono', monospace;
+    }
+
+    html, body {
+      height: 100%;
+      background: var(--bg);
+      color: var(--white);
+      font-family: var(--font-main);
+      overflow-x: hidden;
+    }
+
+    /* Scanline overlay */
+    body::before {
+      content: '';
+      position: fixed; inset: 0; z-index: 0; pointer-events: none;
+      background: repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 2px,
+        rgba(0,0,0,0.08) 2px,
+        rgba(0,0,0,0.08) 4px
+      );
+    }
+
+    /* ── Layout ─────────────────────────────────────────────────────── */
+    .app { position: relative; z-index: 1; display: flex; flex-direction: column; min-height: 100vh; padding: 0 1rem 2rem; max-width: 1280px; margin: 0 auto; }
+
+    /* ── Header ─────────────────────────────────────────────────────── */
+    header {
+      display: flex; flex-direction: column; align-items: center;
+      padding: 2rem 1rem 1.5rem;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 1.5rem;
+      position: relative;
+    }
+
+    .logo {
+      font-size: .65rem; letter-spacing: .35em; color: var(--muted);
+      text-transform: uppercase; margin-bottom: .5rem;
+    }
+
+    .rank-display {
+      font-size: clamp(2.5rem, 8vw, 5.5rem);
+      font-weight: 900;
+      letter-spacing: .08em;
+      line-height: 1;
+      text-transform: uppercase;
+      transition: color .4s, text-shadow .4s;
+    }
+
+    .rank-display.pulse {
+      animation: rank-pulse .6s ease-out;
+    }
+
+    @keyframes rank-pulse {
+      0%   { transform: scale(1); }
+      40%  { transform: scale(1.06); }
+      100% { transform: scale(1); }
+    }
+
+    .stats-row {
+      display: flex; gap: 2.5rem; margin-top: 1.2rem; align-items: flex-end;
+    }
+
+    .stat-block { text-align: center; }
+    .stat-label  { font-size: .55rem; letter-spacing: .25em; color: var(--muted); text-transform: uppercase; margin-bottom: .2rem; }
+    .stat-value  { font-size: 1.6rem; font-weight: 700; letter-spacing: .06em; }
+
+    .score-value { font-size: 2.4rem; letter-spacing: .1em; font-variant-numeric: tabular-nums; }
+
+    .timer-bar-wrap { margin-top: 1rem; width: 100%; max-width: 480px; }
+    .timer-label { font-size: .5rem; letter-spacing: .3em; color: var(--muted); text-align: right; margin-bottom: .25rem; }
+    .timer-bar-bg {
+      height: 4px; background: var(--border); border-radius: 2px; overflow: hidden;
+    }
+    .timer-bar-fill {
+      height: 100%; border-radius: 2px;
+      transition: width .5s linear, background .4s;
+    }
+
+    /* ── Main columns ───────────────────────────────────────────────── */
+    .columns {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+      flex: 1;
+    }
+    @media (max-width: 760px) { .columns { grid-template-columns: 1fr; } }
+
+    /* ── Panel card ─────────────────────────────────────────────────── */
+    .panel {
+      background: var(--bg2);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 1.5rem;
+      position: relative;
+      overflow: hidden;
+    }
+    .panel::before {
+      content: '';
+      position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    }
+    .panel.red::before    { background: var(--red); box-shadow: 0 0 12px var(--red); }
+    .panel.amber::before  { background: var(--amber); box-shadow: 0 0 12px var(--amber); }
+    .panel.green::before  { background: var(--green); box-shadow: 0 0 12px var(--green); }
+
+    .panel-title {
+      font-size: .6rem; letter-spacing: .3em; color: var(--muted);
+      text-transform: uppercase; margin-bottom: 1.2rem;
+    }
+
+    /* ── Form ───────────────────────────────────────────────────────── */
+    .form-group { margin-bottom: 1rem; }
+    label { display: block; font-size: .55rem; letter-spacing: .25em; color: var(--muted); text-transform: uppercase; margin-bottom: .4rem; }
+
+    input[type="text"],
+    select {
+      width: 100%; background: var(--bg3); border: 1px solid var(--border);
+      color: var(--white); font-family: var(--font-mono); font-size: .95rem;
+      padding: .6rem .8rem; border-radius: 2px; outline: none;
+      transition: border-color .2s, box-shadow .2s;
+    }
+    input[type="text"]:focus, select:focus {
+      border-color: var(--red); box-shadow: 0 0 0 2px rgba(255,34,51,.15);
+    }
+    select option { background: var(--bg3); }
+
+    .attr-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: .75rem; }
+
+    .attr-select-wrap { position: relative; }
+    .attr-select-wrap select {
+      text-align: center; font-weight: 700; font-size: 1.1rem;
+      appearance: none; cursor: pointer;
+    }
+    .attr-select-wrap select:hover { border-color: var(--amber); }
+
+    /* ── Buttons ────────────────────────────────────────────────────── */
+    .btn {
+      width: 100%; border: none; cursor: pointer; font-family: var(--font-main);
+      font-weight: 700; text-transform: uppercase; letter-spacing: .1em;
+      border-radius: 2px; transition: filter .2s, transform .1s;
+    }
+    .btn:active { transform: scale(.97); }
+    .btn:hover  { filter: brightness(1.2); }
+
+    .btn-primary {
+      background: var(--red); color: #fff;
+      font-size: 1rem; padding: .9rem; margin-top: .5rem;
+      box-shadow: 0 0 20px rgba(255,34,51,.3), inset 0 1px 0 rgba(255,255,255,.1);
+    }
+
+    .btn-reset {
+      background: transparent; color: var(--muted);
+      border: 1px solid var(--border); font-size: .65rem;
+      padding: .55rem; margin-top: .75rem;
+      letter-spacing: .2em;
+    }
+    .btn-reset:hover { color: var(--red); border-color: var(--red); filter: none; }
+
+    /* ── Terminal log ───────────────────────────────────────────────── */
+    .terminal {
+      background: #0a0a0f; border: 1px solid var(--border); border-radius: 2px;
+      padding: 1rem; height: 320px; overflow-y: auto;
+      font-family: var(--font-mono); font-size: .82rem; line-height: 1.6;
+      display: flex; flex-direction: column; gap: .1rem;
+    }
+    .terminal::-webkit-scrollbar { width: 4px; }
+    .terminal::-webkit-scrollbar-track { background: transparent; }
+    .terminal::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .log-line { animation: log-in .25s ease-out; }
+    @keyframes log-in { from { opacity: 0; transform: translateX(-6px); } to { opacity: 1; transform: none; } }
+    .log-line.ok   { color: var(--green); }
+    .log-line.warn { color: var(--amber); }
+    .log-line.err  { color: var(--red); }
+    .log-line.info { color: var(--blue); }
+    .log-line.sys  { color: var(--muted); }
+
+    /* ── Rank colors (applied to .rank-display & accents) ─────────── */
+    .rank-DESTRUCTIVE { color: #aaaacc; text-shadow: 0 0 20px rgba(170,170,204,.4); }
+    .rank-CHAOTIC     { color: var(--blue);  text-shadow: 0 0 30px rgba(0,170,255,.6); }
+    .rank-BRUTAL      { color: #ff8800;      text-shadow: 0 0 30px rgba(255,136,0,.6); }
+    .rank-ANARCHIC    { color: #ffdd00;      text-shadow: 0 0 35px rgba(255,221,0,.7); }
+    .rank-SUPREME     { color: var(--green); text-shadow: 0 0 35px rgba(0,255,136,.7); }
+    .rank-SSADISTIC   { color: #ff3344;      text-shadow: 0 0 40px rgba(255,51,68,.8); }
+    .rank-SSSHITSTORM { color: #ff1122;      text-shadow: 0 0 50px rgba(255,17,34,.9), 0 0 100px rgba(255,17,34,.4); }
+    .rank-ULTRAKILL   {
+      color: #ffe500;
+      text-shadow: 0 0 20px #ffe500, 0 0 60px #ff8800, 0 0 120px rgba(255,100,0,.5);
+      animation: ultrakill-flicker 1.8s infinite;
+    }
+    @keyframes ultrakill-flicker {
+      0%,100% { opacity: 1; }
+      48%     { opacity: 1; }
+      50%     { opacity: .85; }
+      52%     { opacity: 1; }
+      90%     { opacity: 1; }
+      91%     { opacity: .7; }
+      93%     { opacity: 1; }
+    }
+
+    /* ── Decay warning flash ────────────────────────────────────────── */
+    .decay-flash { animation: decay-flash-anim .8s ease-out; }
+    @keyframes decay-flash-anim {
+      0%  { box-shadow: inset 0 0 60px rgba(255,34,51,.5); }
+      100%{ box-shadow: none; }
+    }
+
+    /* ── Footer ─────────────────────────────────────────────────────── */
+    footer {
+      text-align: center; margin-top: 2rem;
+      font-size: .5rem; letter-spacing: .3em; color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+<div class="app">
+
+  <!-- ── HEADER ────────────────────────────────────────────────────── -->
+  <header id="header">
+    <div class="logo">◈ UltraQuest — Sistema de Produtividade Gamificado ◈</div>
+
+    <div id="rankDisplay" class="rank-display rank-DESTRUCTIVE">DESTRUCTIVE</div>
+
+    <div class="stats-row">
+      <div class="stat-block">
+        <div class="stat-label">Multiplicador</div>
+        <div id="multDisplay" class="stat-value" style="color:var(--amber)">x1.0</div>
+      </div>
+      <div class="stat-block">
+        <div class="stat-label">Pontuação Total</div>
+        <div id="scoreDisplay" class="stat-value score-value" style="color:var(--green)">000000</div>
+      </div>
+    </div>
+
+    <div class="timer-bar-wrap">
+      <div id="timerLabel" class="timer-label">COMBO TIMER</div>
+      <div class="timer-bar-bg">
+        <div id="timerBar" class="timer-bar-fill" style="width:100%; background:var(--muted);"></div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ── COLUMNS ───────────────────────────────────────────────────── -->
+  <div class="columns">
+
+    <!-- Coluna Esquerda: Formulário -->
+    <div class="panel red">
+      <div class="panel-title">▸ Registrar Missão Concluída</div>
+
+      <div class="form-group">
+        <label for="titulo">Nome da Tarefa</label>
+        <input type="text" id="titulo" placeholder="Ex: Estudar capítulo 5..." autocomplete="off" />
+      </div>
+
+      <div class="attr-row">
+        <div class="form-group attr-select-wrap">
+          <label for="prazo">Prazo</label>
+          <select id="prazo">
+            <option value="1">1 — Folgado</option>
+            <option value="2">2 — Apertado</option>
+            <option value="3">3 — Urgente</option>
+          </select>
+        </div>
+        <div class="form-group attr-select-wrap">
+          <label for="importancia">Importância</label>
+          <select id="importancia">
+            <option value="1">1 — Baixa</option>
+            <option value="2">2 — Média</option>
+            <option value="3">3 — Alta</option>
+          </select>
+        </div>
+        <div class="form-group attr-select-wrap">
+          <label for="dificuldade">Dificuldade</label>
+          <select id="dificuldade">
+            <option value="1">1 — Fácil</option>
+            <option value="2">2 — Médio</option>
+            <option value="3">3 — Difícil</option>
+          </select>
+        </div>
+      </div>
+
+      <button class="btn btn-primary" id="btnConcluir">⚡ CONCLUIR MISSÃO</button>
+      <button class="btn btn-reset" id="btnReset">☠ REINICIAR SISTEMA [ RESET ]</button>
+    </div>
+
+    <!-- Coluna Direita: Terminal de log -->
+    <div class="panel green">
+      <div class="panel-title">▸ Histórico de Estilo</div>
+      <div class="terminal" id="terminal">
+        <span class="log-line sys">> UltraQuest v1.0 — Sistema iniciado.</span>
+        <span class="log-line sys">> Aguardando conexão com o servidor...</span>
+      </div>
+    </div>
+
+  </div>
+
+  <footer>UltraQuest &nbsp;·&nbsp; Inspirado em ULTRAKILL &nbsp;·&nbsp; Motor 24/7 na Nuvem</footer>
+</div>
+
+<script>
+  // ─────────────────────────────────────────────────────────────────────────
+  // ⚙️  CONFIGURAÇÃO — altere esta URL para apontar ao seu backend no Render
+  // ─────────────────────────────────────────────────────────────────────────
+  const API_URL = "https://SEU-BACKEND.onrender.com";
+  // Exemplo: const API_URL = "https://ultraquest-api.onrender.com";
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Estado local (para detectar mudanças de rank)
+  // ─────────────────────────────────────────────────────────────────────────
+  let estadoLocal = {
+    rank: "DESTRUCTIVE",
+    multiplicador: 1.0,
+    pontos_totais: 0,
+    rank_index: 0,
+    tempo_restante: null,
+  };
+
+  const RANK_LIMITES = {
+    DESTRUCTIVE:  null,
+    CHAOTIC:      7200,
+    BRUTAL:       7200,
+    ANARCHIC:     5400,
+    SUPREME:      3600,
+    SSADISTIC:    2700,
+    SSSHITSTORM:  1800,
+    ULTRAKILL:    900,
+  };
+
+  const RANK_CORES = {
+    DESTRUCTIVE:  "var(--muted)",
+    CHAOTIC:      "var(--blue)",
+    BRUTAL:       "#ff8800",
+    ANARCHIC:     "#ffdd00",
+    SUPREME:      "var(--green)",
+    SSADISTIC:    "#ff3344",
+    SSSHITSTORM:  "#ff1122",
+    ULTRAKILL:    "#ffe500",
+  };
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // DOM refs
+  // ─────────────────────────────────────────────────────────────────────────
+  const rankDisplay  = document.getElementById("rankDisplay");
+  const multDisplay  = document.getElementById("multDisplay");
+  const scoreDisplay = document.getElementById("scoreDisplay");
+  const timerBar     = document.getElementById("timerBar");
+  const timerLabel   = document.getElementById("timerLabel");
+  const terminal     = document.getElementById("terminal");
+  const header       = document.getElementById("header");
+  const btnConcluir  = document.getElementById("btnConcluir");
+  const btnReset     = document.getElementById("btnReset");
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Helpers
+  // ─────────────────────────────────────────────────────────────────────────
+  function padScore(n) {
+    return String(n).padStart(6, "0");
+  }
+
+  function formatTempo(s) {
+    if (s === null) return "∞";
+    const h = Math.floor(s / 3600);
+    const m = Math.floor((s % 3600) / 60);
+    const sec = Math.floor(s % 60);
+    if (h > 0) return `${h}h ${String(m).padStart(2,"0")}m`;
+    if (m > 0) return `${m}m ${String(sec).padStart(2,"0")}s`;
+    return `${sec}s`;
+  }
+
+  function log(msg, tipo = "info") {
+    const span = document.createElement("span");
+    span.className = `log-line ${tipo}`;
+    span.textContent = `> ${msg}`;
+    terminal.appendChild(span);
+    terminal.scrollTop = terminal.scrollHeight;
+    // manter máximo de 80 linhas
+    while (terminal.children.length > 80) terminal.removeChild(terminal.firstChild);
+  }
+
+  function updateUI(estado, opts = {}) {
+    const { rankAnterior = null, pontosGanhos = null, titulo = null, forceLog = false } = opts;
+
+    const rankAtual = estado.rank;
+    const rankMudou = rankAtual !== estadoLocal.rank;
+
+    // — Rank display —
+    rankDisplay.className = `rank-display rank-${rankAtual}`;
+    rankDisplay.textContent = rankAtual;
+    if (rankMudou) {
+      rankDisplay.classList.add("pulse");
+      rankDisplay.addEventListener("animationend", () => rankDisplay.classList.remove("pulse"), { once: true });
+    }
+
+    // — Multiplicador —
+    multDisplay.textContent = `x${estado.multiplicador.toFixed(1)}`;
+    multDisplay.style.color = RANK_CORES[rankAtual] || "var(--amber)";
+
+    // — Score —
+    scoreDisplay.textContent = padScore(estado.pontos_totais);
+
+    // — Timer bar —
+    const limite = RANK_LIMITES[rankAtual];
+    if (limite === null || estado.tempo_restante === null) {
+      timerBar.style.width = "100%";
+      timerBar.style.background = "var(--muted)";
+      timerLabel.textContent = "COMBO TIMER — PERMANENTE";
+    } else {
+      const pct = Math.max(0, Math.min(100, (estado.tempo_restante / limite) * 100));
+      timerBar.style.width = pct + "%";
+      const cor = pct > 50 ? RANK_CORES[rankAtual] : pct > 20 ? "var(--amber)" : "var(--red)";
+      timerBar.style.background = cor;
+      timerLabel.textContent = `COMBO TIMER — ${formatTempo(estado.tempo_restante)} restantes`;
+    }
+
+    // — Logs —
+    if (pontosGanhos !== null && titulo !== null) {
+      log(`Concluído: "${titulo}" (+${pontosGanhos} pts) → RANK: ${rankAtual}`, "ok");
+    } else if (rankMudou && estadoLocal.rank !== "DESTRUCTIVE" && !forceLog) {
+      // decaimento detectado pelo polling
+      const dir = estado.rank_index < estadoLocal.rank_index ? "⬇ DECAIMENTO" : "⬆ EVOLUÇÃO";
+      log(`${dir} → ${estadoLocal.rank} → ${rankAtual}`, estado.rank_index < estadoLocal.rank_index ? "warn" : "ok");
+      if (estado.rank_index < estadoLocal.rank_index) {
+        header.classList.add("decay-flash");
+        header.addEventListener("animationend", () => header.classList.remove("decay-flash"), { once: true });
+      }
+    }
+
+    estadoLocal = { ...estado };
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // API calls
+  // ─────────────────────────────────────────────────────────────────────────
+  async function fetchStatus() {
+    try {
+      const res = await fetch(`${API_URL}/status`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      updateUI(data);
+    } catch (e) {
+      // silencioso no polling, mas loga na primeira falha
+      if (estadoLocal.rank === "DESTRUCTIVE" && estadoLocal.pontos_totais === 0) {
+        log(`Erro ao conectar: ${e.message} — verifique API_URL no script.`, "err");
+      }
+    }
+  }
+
+  async function concluirTarefa() {
+    const titulo     = document.getElementById("titulo").value.trim();
+    const prazo      = parseInt(document.getElementById("prazo").value);
+    const importancia = parseInt(document.getElementById("importancia").value);
+    const dificuldade = parseInt(document.getElementById("dificuldade").value);
+
+    if (!titulo) {
+      log("ERRO: informe o nome da tarefa antes de concluir.", "err");
+      document.getElementById("titulo").focus();
+      return;
+    }
+
+    btnConcluir.disabled = true;
+    btnConcluir.textContent = "PROCESSANDO...";
+
+    try {
+      const res = await fetch(`${API_URL}/tarefas/concluir`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ titulo, prazo, importancia, dificuldade }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      updateUI(data, {
+        pontosGanhos: data.pontos_ganhos,
+        titulo: data.titulo,
+      });
+      document.getElementById("titulo").value = "";
+      document.getElementById("titulo").focus();
+    } catch (e) {
+      log(`Falha ao concluir tarefa: ${e.message}`, "err");
+    } finally {
+      btnConcluir.disabled = false;
+      btnConcluir.textContent = "⚡ CONCLUIR MISSÃO";
+    }
+  }
+
+  async function resetSistema() {
+    const ok = confirm("⚠️ REINICIAR SISTEMA?\n\nTodo o progresso será perdido permanentemente.\nO rank voltará para DESTRUCTIVE e a pontuação será zerada.");
+    if (!ok) return;
+
+    try {
+      const res = await fetch(`${API_URL}/status/reset`, { method: "POST" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      updateUI(data, { forceLog: true });
+      log("─── SISTEMA REINICIADO — Rank zerado para DESTRUCTIVE ───", "warn");
+    } catch (e) {
+      log(`Falha no reset: ${e.message}`, "err");
+    }
+  }
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Event listeners
+  // ─────────────────────────────────────────────────────────────────────────
+  btnConcluir.addEventListener("click", concluirTarefa);
+  btnReset.addEventListener("click", resetSistema);
+
+  document.getElementById("titulo").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") concluirTarefa();
+  });
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // Polling automático a cada 5 segundos
+  // ─────────────────────────────────────────────────────────────────────────
+  fetchStatus(); // chamada inicial imediata
+  setInterval(fetchStatus, 5000);
+</script>
+</body>
+</html>
